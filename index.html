@@ -1,86 +1,192 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>선거운동 스케줄 조회</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>선거운동 실무 일정표</title>
 <style>
-  body{font-family:sans-serif;max-width:480px;margin:20px auto;padding:0 12px}
-  input{width:100%;font-size:18px;padding:10px;box-sizing:border-box}
-  .card{border:1px solid #ddd;border-radius:8px;padding:10px;margin-top:10px;line-height:1.7}
-  .p{color:#e8590c} .c{color:#2b8a3e}
+  *{box-sizing:border-box}
+  body{margin:0;padding:16px;font-family:"Malgun Gothic",sans-serif;background:#f5f5f7;color:#222}
+  h1{font-size:20px;margin:0 0 4px}
+  .period{font-size:14px;color:#555;margin-bottom:12px}
+  .legend span{display:inline-block;padding:3px 10px;margin-right:6px;border:1px solid #bbb;font-size:13px}
+  .p{background:#fbe0d3}
+  .l{background:#dcf0cc}
+  .chips{margin:12px 0;display:flex;flex-wrap:wrap;gap:6px}
+  .chip{border:1px solid #aaa;background:#fff;border-radius:16px;padding:5px 11px;font-size:14px;cursor:pointer}
+  .chip.on{background:#2b6cb0;color:#fff;border-color:#2b6cb0}
+  .tabs{display:flex;gap:6px;margin:12px 0;flex-wrap:wrap}
+  .tab{border:1px solid #888;background:#fff;padding:7px 16px;cursor:pointer;font-size:15px}
+  .tab.on{background:#222;color:#fff}
+  .day{margin-bottom:22px}
+  .day h2{font-size:17px;margin:0 0 6px}
+  .day small{font-weight:normal;color:#666;font-size:13px}
+  .wrap{overflow-x:auto}
+  table{border-collapse:collapse;background:#fff;min-width:100%}
+  th,td{border:1px solid #333;padding:6px 8px;text-align:center;font-size:14px;white-space:nowrap}
+  th.side{background:#fff}
+  td.me{background:#ffe066;font-weight:bold}
+  .sum{background:#fff;border:2px solid #2b6cb0;padding:10px 14px;margin:12px 0}
+  .sum h3{margin:0 0 6px;font-size:16px}
+  .sum ul{margin:0;padding-left:18px;font-size:14px;line-height:1.7}
+  .sum p{margin:6px 0 0;font-size:13px;color:#555}
+  .mic{margin-top:26px}
+  .mic h2{background:#ecd0f0;margin:0;padding:6px;text-align:center;font-size:16px;border:1px solid #333}
+  .mic .item{background:#fff;border:1px solid #333;border-top:0;padding:8px;font-size:14px;line-height:1.6}
+  .mic .item.me{background:#fff3b0}
+  .mic b{display:block}
 </style>
 </head>
 <body>
-<h2>선거운동 스케줄 조회</h2>
-<input id="q" list="names" placeholder="이름을 입력하세요 (예: 민경)" autocomplete="off">
-<datalist id="names"></datalist>
-<div id="out"></div>
+<h1>선거운동 실무 일정표</h1>
+<div class="period">선거운동기간 11/9(월) ~ 11/23(월)</div>
+<div class="legend"><span class="p">피켓 유세</span><span class="l">강의실 유세</span></div>
+
+<div class="chips" id="chips"></div>
+<div id="summary"></div>
+<div class="tabs" id="tabs"></div>
+<div id="content"></div>
+<div class="mic" id="mic"></div>
 
 <script>
-const P="피켓", C="강의실";
-const D={
- "월":{t:[["8:30~8:40",P],["8:40~8:50",C],["8:50~9:00",C],["12:30~12:40",C],["12:40~12:50",C],["12:50~13:00",C]],
-  r:["지영 지영 지영 지영 지영 지영",
-     "지민 지민 지민 지민 지민 지민",
-     "은지 은지 은지 금비 금비 금비",
-     "시현 시현 시현 서영 서영 서영",
-     "민경 민경 민경 재윤 재윤 재윤"]},
- "화":{t:[["8:30~8:40",P],["8:40~8:50",C],["8:50~9:00",C],["9:30~9:40",C],["9:40~9:50",C],["14:30~14:40",P],["14:40~14:50",C]],
-  r:["지영 지영 지영 지영 지영 지영 지영",
-     "수연 수연 수연 수연 수연 지민 지민",
-     "지호 지호 지호 지호 지호 찬영 찬영",
-     "민경 민경 민경 민경 민경 윤서 윤서",
-     "주현 주현 주현 주현 주현 서영 서영"]},
- "수":{t:[["8:30~8:40",P],["8:40~8:50",C],["8:50~9:00",C],["10:00~10:10",P],["10:10~10:20",C],["12:50~13:00",P],["13:00~13:10",C],["13:10~13:20",C]],
-  r:["지영 지영 지영 지영 지영 지영 지영 지영",
-     "지민 지민 지민 지민 지민 수연 수연 수연",
-     "하원 하원 하원 하원 하원 지민 지민 지민",
-     "찬영 찬영 찬영 찬영 찬영 유비 유비 유비",
-     "시현 시현 시현 금비 금비 은지 은지 은지"]},
- "목":{t:[["8:30~8:40",P],["8:40~8:50",C],["8:50~9:00",C],["12:20~12:30",C],["12:30~12:40",C],["12:40~12:50",C]],
-  r:["지영 지영 지영 지영 지영 지영",
-     "수연 수연 수연 수연 수연 수연",
-     "윤서 윤서 윤서 지민 지민 지민",
-     "승훈 승훈 승훈 유비 유비 유비",
-     "주현 주현 주현 하원 하원 하원"]},
- "금":{t:[["9:30~9:40",C],["9:40~9:50",C],["10:00~10:10",P],["10:10~10:20",C],["10:20~10:30",C]],
-  r:["지영 지영 지영 지영 지영",
-     "수연 수연 수연 수연 수연",
-     "지민 지민 지민 지민 지민",
-     "승훈 승훈 승훈 승훈 승훈",
-     "재윤 재윤 재윤 재윤 재윤"]}
-};
-const M=[
- {d:"11/10(화) 13:00~13:10",p:"제2사범관 앞",n:"지영 수연 지민 재윤 찬영 승훈 민경"},
- {d:"11/18(수) 16:40~16:50",p:"제1사범관 앞",n:"지영 수연 지민 시현 재윤 은지 금비 서영 유비 주현 찬영 민경 지호"},
- {d:"11/23(월) 13:00~13:10",p:"제1사범관 앞",n:"지영 수연 지민 시현 재윤 은지 금비 서영 유비 주현 승훈 민경 지호"}
+const rep=(n,s)=>Array(n).fill(s);
+
+/* y : 시간 칸별 색 (p=피켓, l=강의실) */
+const DAYS=[
+ {d:'월',dates:'11/9 · 11/16 · 11/23',
+  t:['8:30~8:40','8:40~8:50','8:50~9:00','12:30~12:40','12:40~12:50','12:50~13:00'],
+  y:'plllll',
+  rows:[
+   rep(6,'지영'),
+   rep(6,'지민'),
+   [...rep(3,'찬영'),...rep(3,'주현')],
+   [...rep(3,'시현'),...rep(3,'서영')],
+   [...rep(3,'민경'),...rep(3,'재윤')],
+   ['','','','','','수연']
+  ]},
+ {d:'화',dates:'11/10 · 11/17',
+  t:['8:30~8:40','8:40~8:50','8:50~9:00','9:30~9:40','9:40~9:50','14:30~14:40','14:40~14:50'],
+  y:'pllllpl',
+  rows:[
+   rep(7,'지영'),
+   [...rep(5,'수연'),...rep(2,'지민')],
+   [...rep(5,'지호'),...rep(2,'찬영')],
+   [...rep(5,'민경'),...rep(2,'윤서')],
+   rep(7,'주현')
+  ]},
+ {d:'수',dates:'11/11 · 11/18',
+  t:['8:30~8:40','8:40~8:50','8:50~9:00','10:00~10:10','10:10~10:20','12:50~13:00','13:00~13:10','13:10~13:20'],
+  y:'pllplpll',
+  rows:[
+   rep(8,'지영'),
+   [...rep(3,'지민'),...rep(2,'승훈'),...rep(3,'수연')],
+   [...rep(5,'하원'),...rep(3,'지민')],
+   [...rep(5,'찬영'),...rep(3,'유비')],
+   [...rep(3,'승훈'),...rep(2,'금비'),...rep(3,'은지')]
+  ]},
+ {d:'목',dates:'11/12 · 11/19',
+  t:['8:30~8:40','8:40~8:50','8:50~9:00','12:20~12:30','12:30~12:40','12:40~12:50'],
+  y:'plllll',
+  rows:[
+   rep(6,'지영'),
+   rep(6,'수연'),
+   [...rep(3,'윤서'),...rep(3,'지민')],
+   [...rep(3,'승훈'),...rep(3,'찬영')],
+   [...rep(3,'주현'),...rep(3,'하원')]
+  ]},
+ {d:'금',dates:'11/13 · 11/20',
+  t:['9:30~9:40','9:40~9:50','10:00~10:10','10:10~10:20','10:20~10:30'],
+  y:'llpll',
+  rows:[
+   rep(5,'지영'),
+   rep(5,'수연'),
+   rep(5,'지민'),
+   rep(5,'승훈'),
+   rep(5,'하원')
+  ]}
 ];
 
-const names=new Set();
-for(const k in D) D[k].r.forEach(r=>r.split(" ").forEach(n=>names.add(n)));
-M.forEach(m=>m.n.split(" ").forEach(n=>names.add(n)));
-document.getElementById("names").innerHTML=[...names].sort().map(n=>`<option value="${n}">`).join("");
+const MIC=[
+ {date:'11/10(화)',time:'13:00~13:10',place:'제2사범관 앞',
+  n:['지영','수연','지민','재윤','찬영','승훈','민경']},
+ {date:'11/18(수)',time:'16:40~16:50',place:'제1사범관 앞',
+  n:['지영','수연','지민','시현','재윤','은지','금비','서영','유비','주현','찬영','민경','지호']},
+ {date:'11/23(월)',time:'13:00~13:10',place:'제1사범관 앞',
+  n:['지영','수연','지민','시현','재윤','은지','금비','서영','유비','주현','승훈','민경','지호']}
+];
 
-const q=document.getElementById("q"), out=document.getElementById("out");
-q.addEventListener("input",()=>{
-  const name=q.value.trim();
-  if(!name){out.innerHTML="";return;}
-  let h="";
-  for(const day in D){
+const ALL='전체';
+let who='';
+try{who=localStorage.getItem('who')||'';}catch(e){}
+let cur=(()=>{const g=new Date().getDay();return (g>=1&&g<=5)?DAYS[g-1].d:DAYS[0].d;})();
+
+const names=[...new Set([
+  ...DAYS.flatMap(d=>d.rows.flat()),
+  ...MIC.flatMap(m=>m.n)
+].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko'));
+if(!names.includes(who)) who='';
+
+function tableHTML(day){
+  let h='<div class="day"><h2>'+day.d+'요일 <small>'+day.dates+'</small></h2><div class="wrap"><table><thead><tr><th>시간</th>';
+  day.t.forEach((t,i)=>{h+='<th class="'+day.y[i]+'">'+t+'</th>';});
+  h+='</tr></thead><tbody>';
+  day.rows.forEach((row,ri)=>{
+    h+='<tr>';
+    if(ri===0) h+='<th class="side" rowspan="'+day.rows.length+'">실무 인원</th>';
+    row.forEach(n=>{h+='<td class="'+(who&&n===who?'me':'')+'">'+n+'</td>';});
+    h+='</tr>';
+  });
+  return h+'</tbody></table></div></div>';
+}
+
+function summaryHTML(){
+  if(!who) return '';
+  let total=0;
+  let h='<div class="sum"><h3>'+who+' 님 일정</h3><ul>';
+  DAYS.forEach(day=>{
     const items=[];
-    D[day].r.forEach(row=>row.split(" ").forEach((n,i)=>{ if(n===name) items.push(D[day].t[i]); }));
-    if(items.length){
-      h+=`<div class="card"><b>${day}요일</b><br>`+
-        items.map(([t,type])=>`<span class="${type===P?'p':'c'}">${t} (${type} 유세)</span>`).join("<br>")+`</div>`;
-    }
+    day.t.forEach((t,i)=>{
+      if(day.rows.some(r=>r[i]===who))
+        items.push(t+(day.y[i]==='p'?' (피켓)':' (강의실)'));
+    });
+    if(items.length){total+=items.length;h+='<li><b>'+day.d+'요일</b> '+items.join(', ')+'</li>';}
+  });
+  MIC.forEach(m=>{
+    if(m.n.includes(who)) h+='<li><b>야외 마이크</b> '+m.date+' '+m.time+' '+m.place+'</li>';
+  });
+  return h+'</ul><p>요일별 유세 총 '+total+'타임 (매주 반복)</p></div>';
+}
+
+function micHTML(){
+  let h='<h2>야외 마이크 유세</h2>';
+  MIC.forEach(m=>{
+    h+='<div class="item'+(who&&m.n.includes(who)?' me':'')+'"><b>'+m.date+' '+m.time+' · '+m.place+'</b>'+
+       m.n.map(n=>n===who?'<u>'+n+'</u>':n).join(', ')+'</div>';
+  });
+  return h;
+}
+
+function render(){
+  document.getElementById('chips').innerHTML=
+    names.map(n=>'<button class="chip'+(n===who?' on':'')+'" data-n="'+n+'">'+n+'</button>').join('');
+  document.getElementById('summary').innerHTML=summaryHTML();
+  document.getElementById('tabs').innerHTML=
+    [...DAYS.map(d=>d.d),ALL].map(d=>'<button class="tab'+(d===cur?' on':'')+'" data-d="'+d+'">'+d+'</button>').join('');
+  document.getElementById('content').innerHTML=
+    DAYS.filter(d=>cur===ALL||d.d===cur).map(tableHTML).join('');
+  document.getElementById('mic').innerHTML=micHTML();
+}
+
+document.addEventListener('click',e=>{
+  const c=e.target.closest('.chip'), t=e.target.closest('.tab');
+  if(c){
+    who=(who===c.dataset.n)?'':c.dataset.n;
+    try{localStorage.setItem('who',who);}catch(err){}
+    render();
   }
-  const mics=M.filter(m=>m.n.split(" ").includes(name));
-  if(mics.length){
-    h+=`<div class="card"><b>야외 마이크 유세</b><br>`+mics.map(m=>`${m.d} · ${m.p}`).join("<br>")+`</div>`;
-  }
-  out.innerHTML=h||`<div class="card">일치하는 이름이 없어요.</div>`;
+  if(t){cur=t.dataset.d;render();}
 });
+render();
 </script>
 </body>
 </html>
